@@ -62,11 +62,26 @@ Start the backend:
 uvicorn oceanic_os.api:app --reload
 ```
 
-Open the app in a browser:
+Open the app dashboard:
 
 ```bash
 http://127.0.0.1:8000/
 ```
+
+Explore the API with interactive documentation:
+
+```bash
+http://127.0.0.1:8000/docs         # Swagger UI
+http://127.0.0.1:8000/redoc        # ReDoc
+```
+
+## API Features
+
+- **Identities**: Full CRUD operations (Create, Read, Update, Delete)
+- **Search**: Filter identities by name or email
+- **Memory**: Record and retrieve event timeline
+- **Dashboard**: Live summary of system state
+- **Auto Documentation**: Interactive Swagger UI and ReDoc
 
 ## Next step
 

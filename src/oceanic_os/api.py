@@ -8,8 +8,12 @@ from .identity import Identity, IdentityStore
 from .memory import MemoryStore
 
 app = FastAPI(
-    title="Oceanic-OS",
-    description="One-drop full-stack prototype for identity, memory, dashboard, and ecosystem.",
+    title="Oceanic-OS API",
+    description="Full-stack prototype for identity, memory, dashboard, and ecosystem.",
+    version="0.1.0",
+    docs_url="/docs",
+    redoc_url="/redoc",
+    openapi_url="/openapi.json",
 )
 app.add_middleware(
     CORSMiddleware,
@@ -35,17 +39,19 @@ class MemoryPayload(BaseModel):
     event: str
     payload: dict[str, object] = {}
 
-@app.get("/health")
+@app.get("/health", tags=["Core"])
 def health() -> dict[str, str]:
+    """Health check endpoint."""
     return {"status": "ok"}
 
 
-@app.get("/dashboard")
+@app.get("/dashboard", tags=["Dashboard"])
 def dashboard() -> dict[str, object]:
+    """Get dashboard summary with identity and event counts."""
     return Dashboard(identity_store, memory_store).summary()
 
 
-@app.get("/identities")
+@app.get("/identities", tags=["Identities"])
 def get_identities(search: str = "") -> list[dict[str, str]]:
     """List identities, optionally filtered by name or email."""
     identities = identity_store.list()
@@ -58,7 +64,7 @@ def get_identities(search: str = "") -> list[dict[str, str]]:
     return [identity.__dict__ for identity in identities]
 
 
-@app.get("/identity/{identity_id}")
+@app.get("/identity/{identity_id}", tags=["Identities"])
 def get_identity(identity_id: str) -> dict[str, str]:
     """Get a single identity by ID."""
     identity = identity_store.get(identity_id)
@@ -67,7 +73,7 @@ def get_identity(identity_id: str) -> dict[str, str]:
     return identity.__dict__
 
 
-@app.post("/identity")
+@app.post("/identity", tags=["Identities"])
 def create_identity(identity: IdentityPayload) -> dict[str, object]:
     """Create a new identity."""
     if identity_store.get(identity.id):
@@ -78,7 +84,7 @@ def create_identity(identity: IdentityPayload) -> dict[str, object]:
     return {"status": "ok", "identity": new_identity.__dict__}
 
 
-@app.put("/identity/{identity_id}")
+@app.put("/identity/{identity_id}", tags=["Identities"])
 def update_identity(identity_id: str, identity: IdentityPayload) -> dict[str, object]:
     """Update an existing identity."""
     existing = identity_store.get(identity_id)
@@ -90,7 +96,7 @@ def update_identity(identity_id: str, identity: IdentityPayload) -> dict[str, ob
     return {"status": "ok", "identity": updated_identity.__dict__}
 
 
-@app.delete("/identity/{identity_id}")
+@app.delete("/identity/{identity_id}", tags=["Identities"])
 def delete_identity(identity_id: str) -> dict[str, object]:
     """Delete an identity."""
     existing = identity_store.get(identity_id)
@@ -101,13 +107,15 @@ def delete_identity(identity_id: str) -> dict[str, object]:
     return {"status": "ok", "message": f"Identity {identity_id} deleted"}
 
 
-@app.get("/memory")
+@app.get("/memory", tags=["Memory"])
 def get_memory() -> list[dict[str, object]]:
+    """Get the memory timeline of all recorded events."""
     return memory_store.timeline()
 
 
-@app.post("/memory")
+@app.post("/memory", tags=["Memory"])
 def record_memory(payload: MemoryPayload) -> dict[str, object]:
+    """Record a new memory event."""
     memory_store.record(payload.event, payload.payload)
     return {"status": "ok", "memory": {"event": payload.event, "payload": payload.payload}}
 
