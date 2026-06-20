@@ -52,16 +52,45 @@ def dashboard() -> dict[str, object]:
 
 
 @app.get("/identities", tags=["Identities"])
-def get_identities(search: str = "") -> list[dict[str, str]]:
-    """List identities, optionally filtered by name or email."""
+def get_identities(search: str = "", skip: int = 0, limit: int = 100, sort: str = "id") -> dict[str, object]:
+    """List identities with optional search, pagination, and sorting.
+    
+    Args:
+        search: Filter by name or email (case-insensitive)
+        skip: Number of identities to skip (pagination)
+        limit: Maximum number of identities to return (1-100)
+        sort: Sort field (id, name, email)
+    """
+    if limit > 100:
+        limit = 100
+    if limit < 1:
+        limit = 1
+    
     identities = identity_store.list()
+    
+    # Filter
     if search:
         search_lower = search.lower()
         identities = [
             i for i in identities
             if search_lower in i.name.lower() or search_lower in i.email.lower()
         ]
-    return [identity.__dict__ for identity in identities]
+    
+    # Sort
+    if sort in ["id", "name", "email"]:
+        identities = sorted(identities, key=lambda x: getattr(x, sort).lower())
+    
+    # Paginate
+    total = len(identities)
+    identities = identities[skip:skip + limit]
+    
+    return {
+        "data": [identity.__dict__ for identity in identities],
+        "total": total,
+        "skip": skip,
+        "limit": limit,
+        "returned": len(identities),
+    }
 
 
 @app.get("/identity/{identity_id}", tags=["Identities"])

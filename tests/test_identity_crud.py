@@ -46,16 +46,42 @@ def test_search_identities() -> None:
 
     # Search by name
     response = client.get("/identities?search=alice")
-    assert len(response.json()) >= 1
-    assert any(i["id"] == "alice" for i in response.json())
+    data = response.json()["data"]
+    assert any(i["id"] == "alice" for i in data)
 
     # Search by email
     response = client.get("/identities?search=bob@")
-    assert any(i["id"] == "bob" for i in response.json())
+    data = response.json()["data"]
+    assert any(i["id"] == "bob" for i in data)
 
     # Search with no results
     response = client.get("/identities?search=nonexistent")
-    assert len(response.json()) == 0
+    assert len(response.json()["data"]) == 0
+
+
+def test_pagination_and_sorting() -> None:
+    """Test pagination and sorting of identities."""
+    # Create multiple identities
+    for i in range(5):
+        client.post("/identity", json={"id": f"user{i}", "name": f"User {i}", "email": f"user{i}@example.com"})
+
+    # Test pagination
+    response = client.get("/identities?limit=2")
+    data = response.json()
+    assert len(data["data"]) == 2
+    assert data["limit"] == 2
+    assert data["total"] >= 5
+
+    # Test sorting
+    response = client.get("/identities?sort=name")
+    data = response.json()["data"]
+    if len(data) > 1:
+        assert data[0]["name"] <= data[1]["name"]
+
+    # Test skip
+    response = client.get("/identities?skip=1&limit=2")
+    data = response.json()
+    assert data["skip"] == 1
 
 
 def test_identity_conflict() -> None:

@@ -39,7 +39,8 @@ async function loadDashboard() {
 }
 
 async function loadIdentities() {
-  allIdentities = await fetchJson('/identities');
+  const response = await fetchJson('/identities?limit=100');
+  allIdentities = response.data;
   renderIdentities(allIdentities);
 }
 

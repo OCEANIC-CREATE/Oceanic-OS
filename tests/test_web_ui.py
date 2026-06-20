@@ -19,4 +19,5 @@ def test_create_identity_updates_identities() -> None:
 
     identities_response = client.get("/identities")
     assert identities_response.status_code == 200
-    assert any(identity["id"] == "user-web" for identity in identities_response.json())
+    data = identities_response.json()["data"]
+    assert any(identity["id"] == "user-web" for identity in data)

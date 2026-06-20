@@ -32,6 +32,17 @@ def test_create_identity_endpoint() -> None:
     assert response.json()["identity"]["id"] == payload["id"]
 
 
+def test_identities_endpoint_returns_paginated_data() -> None:
+    response = client.get("/identities")
+    assert response.status_code == 200
+    data = response.json()
+    assert "data" in data
+    assert "total" in data
+    assert "skip" in data
+    assert "limit" in data
+    assert isinstance(data["data"], list)
+
+
 def test_web_static_root_serves_index() -> None:
     response = client.get("/")
     assert response.status_code == 200
