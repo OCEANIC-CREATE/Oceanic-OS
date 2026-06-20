@@ -1,0 +1,201 @@
+from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import RedirectResponse
+from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel
+from .dashboard import Dashboard
+from .identity import Identity, IdentityStore
+from .memory import MemoryStore
+from .settings import settings
+
+app = FastAPI(
+    title=settings.app_name,
+    description="Full-stack prototype for identity, memory, dashboard, and ecosystem.",
+    version="0.1.0",
+    debug=settings.app_debug,
+    docs_url="/docs",
+    redoc_url="/redoc",
+    openapi_url="/openapi.json",
+)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=settings.cors_origins.split(","),
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+identity_store = IdentityStore()
+memory_store = MemoryStore()
+
+identity_store.add(Identity(id="user1", name="Alice", email="alice@example.com"))
+memory_store.record("seed", {"source": "startup"})
+app.mount("/static", StaticFiles(directory="web"), name="static")
+
+
+class IdentityPayload(BaseModel):
+    id: str
+    name: str
+    email: str
+
+class MemoryPayload(BaseModel):
+    event: str
+    payload: dict[str, object] = {}
+
+class IdentityListPayload(BaseModel):
+    identities: list[IdentityPayload]
+
+@app.get("/health", tags=["Core"])
+def health() -> dict[str, str]:
+    """Health check endpoint."""
+    return {"status": "ok"}
+
+
+@app.get("/dashboard", tags=["Dashboard"])
+def dashboard() -> dict[str, object]:
+    """Get dashboard summary with identity and event counts."""
+    return Dashboard(identity_store, memory_store).summary()
+
+
+@app.get("/identities", tags=["Identities"])
+def get_identities(search: str = "", skip: int = 0, limit: int = 100, sort: str = "id") -> dict[str, object]:
+    """List identities with optional search, pagination, and sorting.
+    
+    Args:
+        search: Filter by name or email (case-insensitive)
+        skip: Number of identities to skip (pagination)
+        limit: Maximum number of identities to return (1-{})
+        sort: Sort field (id, name, email)
+    """.format(settings.pagination_limit)
+    if limit > settings.pagination_limit:
+        limit = settings.pagination_limit
+    if limit < 1:
+        limit = 1
+    
+    identities = identity_store.list()
+    
+    # Filter
+    if search:
+        search_lower = search.lower()
+        identities = [
+            i for i in identities
+            if search_lower in i.name.lower() or search_lower in i.email.lower()
+        ]
+    
+    # Sort
+    if sort in ["id", "name", "email"]:
+        identities = sorted(identities, key=lambda x: getattr(x, sort).lower())
+    
+    # Paginate
+    total = len(identities)
+    identities = identities[skip:skip + limit]
+    
+    return {
+        "data": [identity.__dict__ for identity in identities],
+        "total": total,
+        "skip": skip,
+        "limit": limit,
+        "returned": len(identities),
+    }
+
+
+@app.get("/identity/{identity_id}", tags=["Identities"])
+def get_identity(identity_id: str) -> dict[str, str]:
+    """Get a single identity by ID."""
+    identity = identity_store.get(identity_id)
+    if not identity:
+        raise HTTPException(status_code=404, detail="Identity not found")
+    return identity.__dict__
+
+
+@app.post("/identity", tags=["Identities"])
+def create_identity(identity: IdentityPayload) -> dict[str, object]:
+    """Create a new identity."""
+    if identity_store.get(identity.id):
+        raise HTTPException(status_code=409, detail="Identity already exists")
+    new_identity = Identity(**identity.model_dump())
+    identity_store.add(new_identity)
+    memory_store.record("identity_added", new_identity.__dict__)
+    return {"status": "ok", "identity": new_identity.__dict__}
+
+
+@app.put("/identity/{identity_id}", tags=["Identities"])
+def update_identity(identity_id: str, identity: IdentityPayload) -> dict[str, object]:
+    """Update an existing identity."""
+    existing = identity_store.get(identity_id)
+    if not existing:
+        raise HTTPException(status_code=404, detail="Identity not found")
+    updated_identity = Identity(**identity.model_dump())
+    identity_store.add(updated_identity)
+    memory_store.record("identity_updated", updated_identity.__dict__)
+    return {"status": "ok", "identity": updated_identity.__dict__}
+
+
+@app.delete("/identity/{identity_id}", tags=["Identities"])
+def delete_identity(identity_id: str) -> dict[str, object]:
+    """Delete an identity."""
+    existing = identity_store.get(identity_id)
+    if not existing:
+        raise HTTPException(status_code=404, detail="Identity not found")
+    identity_store.delete(identity_id)
+    memory_store.record("identity_deleted", {"id": identity_id})
+    return {"status": "ok", "message": f"Identity {identity_id} deleted"}
+
+
+@app.get("/memory", tags=["Memory"])
+def get_memory() -> list[dict[str, object]]:
+    """Get the memory timeline of all recorded events."""
+    return memory_store.timeline()
+
+
+@app.post("/memory", tags=["Memory"])
+def record_memory(payload: MemoryPayload) -> dict[str, object]:
+    """Record a new memory event."""
+    memory_store.record(payload.event, payload.payload)
+    return {"status": "ok", "memory": {"event": payload.event, "payload": payload.payload}}
+
+
+@app.post("/identities/bulk", tags=["Identities"])
+def bulk_create_identities(payload: IdentityListPayload) -> dict[str, object]:
+    """Bulk create multiple identities in a single request."""
+    created = []
+    errors = []
+
+    for identity_data in payload.identities:
+        try:
+            if identity_store.get(identity_data.id):
+                errors.append({"id": identity_data.id, "error": "Already exists"})
+                continue
+
+            new_identity = Identity(**identity_data.model_dump())
+            identity_store.add(new_identity)
+            memory_store.record("identity_added", new_identity.__dict__)
+            created.append(new_identity.__dict__)
+        except Exception as e:
+            errors.append({"id": getattr(identity_data, "id", "unknown"), "error": str(e)})
+
+    return {
+        "status": "ok" if not errors else "partial",
+        "created": len(created),
+        "failed": len(errors),
+        "identities": created,
+        "errors": errors,
+    }
+
+
+@app.get("/stats", tags=["Stats"])
+def get_stats() -> dict[str, object]:
+    """Get system statistics."""
+    identities = identity_store.list()
+    events = memory_store.timeline()
+
+    return {
+        "identities_count": len(identities),
+        "events_count": len(events),
+        "recent_events": memory_store.last(5),
+        "uptime": "running",
+    }
+
+
+@app.get("/")
+def root() -> RedirectResponse:
+    return RedirectResponse(url="/static/index.html")
