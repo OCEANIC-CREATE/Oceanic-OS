@@ -38,8 +38,11 @@
 
 - `docs/` — mission, roadmap, design notes, and principles.
 - `src/` — module scaffolding for core missions and chapters.
-- `src/oceanic_os/` — initial prototype package for identity, memory, and dashboard.
-- `tests/` — simple tests for basic behavior.
+- `src/oceanic_os/` — full-stack prototype package for identity, memory, dashboard, and ecosystem.
+- `web/` — static frontend served by the application.
+- `tests/` — API and module tests.
+- `Makefile` — developer workflows.
+- `requirements.txt` — installable dependencies.
 - `.gitignore` — sensible defaults for future code.
 - `pyproject.toml` — Python package metadata.
 
@@ -48,8 +51,22 @@
 1. Install Python 3.11 or newer.
 2. Create a virtual environment: `python -m venv .venv`
 3. Activate it: `source .venv/bin/activate`
-4. Install test dependencies: `pip install pytest`
+4. Install dependencies: `pip install -r requirements.txt`
 5. Run tests: `pytest`
+
+## Run locally
+
+Start the backend:
+
+```bash
+uvicorn oceanic_os.api:app --reload
+```
+
+Open the app in a browser:
+
+```bash
+http://127.0.0.1:8000/
+```
 
 ## Next step
 

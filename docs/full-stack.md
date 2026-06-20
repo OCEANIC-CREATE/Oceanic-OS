@@ -15,7 +15,7 @@ Oceanic-OS now includes a minimal full-stack ecosystem with a backend API and a 
 
 - Static dashboard in `web/index.html`
 - Served from the backend at `/static/index.html`
-- Minimal client-side code for inspecting live state
+- Minimal client-side code for inspecting live state and creating identities
 
 ## Local developer commands
 
