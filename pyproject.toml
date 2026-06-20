@@ -1,0 +1,16 @@
+[project]
+name = "oceanic_os"
+version = "0.1.0"
+description = "Oceanic-OS seed project for identity, memory, and dashboard prototyping."
+readme = "README.md"
+requires-python = ">=3.11"
+packages = [
+  { include = "oceanic_os" }
+]
+
+[project.urls]
+homepage = "https://example.com/Oceanic-OS"
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
