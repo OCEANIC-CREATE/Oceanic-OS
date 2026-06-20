@@ -19,3 +19,7 @@ class IdentityStore:
 
     def list(self) -> list[Identity]:
         return list(self._store.values())
+
+    def delete(self, identity_id: str) -> None:
+        if identity_id in self._store:
+            del self._store[identity_id]

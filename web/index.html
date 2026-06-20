@@ -7,36 +7,76 @@
   <style>
     body { font-family: system-ui, sans-serif; margin: 2rem; background: #0b172a; color: #e2e8f0; }
     h1 { margin-bottom: .5rem; }
-    code, pre { background: rgba(255,255,255,.08); padding: 1rem; border-radius: .75rem; display: block; }
-    .section { margin-bottom: 1.5rem; }
+    code, pre { background: rgba(255,255,255,.08); padding: 1rem; border-radius: .75rem; display: block; overflow-x: auto; }
+    .section { margin-bottom: 2rem; padding: 1rem; border-left: 3px solid #3b82f6; }
+    table { width: 100%; border-collapse: collapse; margin: 1rem 0; }
+    th, td { padding: .75rem; text-align: left; border-bottom: 1px solid rgba(255,255,255,.1); }
+    th { background: rgba(255,255,255,.05); font-weight: 600; }
+    button { padding: .5rem 1rem; background: #3b82f6; color: white; border: none; border-radius: .5rem; cursor: pointer; margin-right: .5rem; font-size: .9rem; }
+    button:hover { background: #2563eb; }
+    button.danger { background: #ef4444; padding: .4rem .8rem; font-size: .8rem; }
+    button.danger:hover { background: #dc2626; }
+    input[type="text"], input[type="email"], textarea { width: 100%; padding: .5rem; background: rgba(255,255,255,.05); color: #e2e8f0; border: 1px solid rgba(255,255,255,.1); border-radius: .5rem; margin-bottom: .5rem; }
+    input[type="text"]:focus, input[type="email"]:focus, textarea:focus { outline: none; border-color: #3b82f6; }
+    .status { padding: .75rem; border-radius: .5rem; margin-top: .5rem; }
+    .status.success { background: rgba(34, 197, 94, .2); color: #86efac; }
+    .status.error { background: rgba(239, 68, 68, .2); color: #fca5a5; }
+    .action-row { display: flex; gap: .5rem; }
   </style>
 </head>
 <body>
   <h1>Oceanic-OS Dashboard</h1>
-  <p>A minimal Oceanic-OS front end served by the backend API.</p>
+  <p>Full-stack identity, memory, and dashboard prototype.</p>
 
   <div class="section">
-    <h2>API Endpoints</h2>
-    <ul>
-      <li><code>GET /health</code></li>
-      <li><code>GET /dashboard</code></li>
-      <li><code>GET /identities</code></li>
-      <li><code>POST /identity</code></li>
-    </ul>
-  </div>
-
-  <div class="section">
-    <h2>Dashboard</h2>
+    <h2>Dashboard Summary</h2>
     <pre id="dashboard">Loading dashboard…</pre>
   </div>
 
-  <script>
-    async function loadDashboard() {
-      const response = await fetch('/dashboard');
-      const data = await response.json();
-      document.getElementById('dashboard').textContent = JSON.stringify(data, null, 2);
-    }
-    loadDashboard();
-  </script>
+  <div class="section">
+    <h2>Identities</h2>
+    <input type="text" id="search-input" placeholder="Search by name or email..." style="margin-bottom: 1rem;" />
+    <table id="identities-table">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Name</th>
+          <th>Email</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody id="identities-body">
+        <tr><td colspan="4">Loading identities…</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="section">
+    <h2>Create or Update Identity</h2>
+    <form id="identity-form">
+      <label>ID<br /><input name="id" required /></label>
+      <label>Name<br /><input name="name" required /></label>
+      <label>Email<br /><input name="email" type="email" required /></label>
+      <button type="submit" id="identity-submit">Create identity</button>
+    </form>
+    <div id="status"></div>
+  </div>
+
+  <div class="section">
+    <h2>Recent Memory Events</h2>
+    <pre id="events">Loading events…</pre>
+  </div>
+
+  <div class="section">
+    <h2>Record Memory Event</h2>
+    <form id="memory-form">
+      <label>Event name<br /><input name="event" required /></label>
+      <label>Payload (JSON)<br /><textarea name="payload" rows="3">{"details":"example"}</textarea></label>
+      <button type="submit">Record event</button>
+    </form>
+    <div id="memory-status"></div>
+  </div>
+
+  <script type="module" src="./app.js"></script>
 </body>
 </html>

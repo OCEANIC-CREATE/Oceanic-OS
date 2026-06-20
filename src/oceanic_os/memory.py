@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 
 class MemoryStore:
@@ -7,7 +7,7 @@ class MemoryStore:
 
     def record(self, event: str, payload: Any) -> None:
         self._history.append({
-            "timestamp": datetime.utcnow().isoformat() + "Z",
+            "timestamp": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
             "event": event,
             "payload": payload,
         })

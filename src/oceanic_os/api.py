@@ -1,4 +1,4 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
@@ -31,6 +31,10 @@ class IdentityPayload(BaseModel):
     name: str
     email: str
 
+class MemoryPayload(BaseModel):
+    event: str
+    payload: dict[str, object] = {}
+
 @app.get("/health")
 def health() -> dict[str, str]:
     return {"status": "ok"}
@@ -42,16 +46,70 @@ def dashboard() -> dict[str, object]:
 
 
 @app.get("/identities")
-def get_identities() -> list[dict[str, str]]:
-    return [identity.__dict__ for identity in identity_store.list()]
+def get_identities(search: str = "") -> list[dict[str, str]]:
+    """List identities, optionally filtered by name or email."""
+    identities = identity_store.list()
+    if search:
+        search_lower = search.lower()
+        identities = [
+            i for i in identities
+            if search_lower in i.name.lower() or search_lower in i.email.lower()
+        ]
+    return [identity.__dict__ for identity in identities]
+
+
+@app.get("/identity/{identity_id}")
+def get_identity(identity_id: str) -> dict[str, str]:
+    """Get a single identity by ID."""
+    identity = identity_store.get(identity_id)
+    if not identity:
+        raise HTTPException(status_code=404, detail="Identity not found")
+    return identity.__dict__
 
 
 @app.post("/identity")
 def create_identity(identity: IdentityPayload) -> dict[str, object]:
-    new_identity = Identity(**identity.dict())
+    """Create a new identity."""
+    if identity_store.get(identity.id):
+        raise HTTPException(status_code=409, detail="Identity already exists")
+    new_identity = Identity(**identity.model_dump())
     identity_store.add(new_identity)
     memory_store.record("identity_added", new_identity.__dict__)
     return {"status": "ok", "identity": new_identity.__dict__}
+
+
+@app.put("/identity/{identity_id}")
+def update_identity(identity_id: str, identity: IdentityPayload) -> dict[str, object]:
+    """Update an existing identity."""
+    existing = identity_store.get(identity_id)
+    if not existing:
+        raise HTTPException(status_code=404, detail="Identity not found")
+    updated_identity = Identity(**identity.model_dump())
+    identity_store.add(updated_identity)
+    memory_store.record("identity_updated", updated_identity.__dict__)
+    return {"status": "ok", "identity": updated_identity.__dict__}
+
+
+@app.delete("/identity/{identity_id}")
+def delete_identity(identity_id: str) -> dict[str, object]:
+    """Delete an identity."""
+    existing = identity_store.get(identity_id)
+    if not existing:
+        raise HTTPException(status_code=404, detail="Identity not found")
+    identity_store.delete(identity_id)
+    memory_store.record("identity_deleted", {"id": identity_id})
+    return {"status": "ok", "message": f"Identity {identity_id} deleted"}
+
+
+@app.get("/memory")
+def get_memory() -> list[dict[str, object]]:
+    return memory_store.timeline()
+
+
+@app.post("/memory")
+def record_memory(payload: MemoryPayload) -> dict[str, object]:
+    memory_store.record(payload.event, payload.payload)
+    return {"status": "ok", "memory": {"event": payload.event, "payload": payload.payload}}
 
 
 @app.get("/")
