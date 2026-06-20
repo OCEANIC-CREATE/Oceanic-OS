@@ -6,18 +6,20 @@ from pydantic import BaseModel
 from .dashboard import Dashboard
 from .identity import Identity, IdentityStore
 from .memory import MemoryStore
+from .settings import settings
 
 app = FastAPI(
-    title="Oceanic-OS API",
+    title=settings.app_name,
     description="Full-stack prototype for identity, memory, dashboard, and ecosystem.",
     version="0.1.0",
+    debug=settings.app_debug,
     docs_url="/docs",
     redoc_url="/redoc",
     openapi_url="/openapi.json",
 )
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=settings.cors_origins.split(","),
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -61,11 +63,11 @@ def get_identities(search: str = "", skip: int = 0, limit: int = 100, sort: str 
     Args:
         search: Filter by name or email (case-insensitive)
         skip: Number of identities to skip (pagination)
-        limit: Maximum number of identities to return (1-100)
+        limit: Maximum number of identities to return (1-{})
         sort: Sort field (id, name, email)
-    """
-    if limit > 100:
-        limit = 100
+    """.format(settings.pagination_limit)
+    if limit > settings.pagination_limit:
+        limit = settings.pagination_limit
     if limit < 1:
         limit = 1
     
