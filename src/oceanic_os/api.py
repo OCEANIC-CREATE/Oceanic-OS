@@ -39,6 +39,9 @@ class MemoryPayload(BaseModel):
     event: str
     payload: dict[str, object] = {}
 
+class IdentityListPayload(BaseModel):
+    identities: list[IdentityPayload]
+
 @app.get("/health", tags=["Core"])
 def health() -> dict[str, str]:
     """Health check endpoint."""
@@ -147,6 +150,48 @@ def record_memory(payload: MemoryPayload) -> dict[str, object]:
     """Record a new memory event."""
     memory_store.record(payload.event, payload.payload)
     return {"status": "ok", "memory": {"event": payload.event, "payload": payload.payload}}
+
+
+@app.post("/identities/bulk", tags=["Identities"])
+def bulk_create_identities(payload: IdentityListPayload) -> dict[str, object]:
+    """Bulk create multiple identities in a single request."""
+    created = []
+    errors = []
+
+    for identity_data in payload.identities:
+        try:
+            if identity_store.get(identity_data.id):
+                errors.append({"id": identity_data.id, "error": "Already exists"})
+                continue
+
+            new_identity = Identity(**identity_data.model_dump())
+            identity_store.add(new_identity)
+            memory_store.record("identity_added", new_identity.__dict__)
+            created.append(new_identity.__dict__)
+        except Exception as e:
+            errors.append({"id": getattr(identity_data, "id", "unknown"), "error": str(e)})
+
+    return {
+        "status": "ok" if not errors else "partial",
+        "created": len(created),
+        "failed": len(errors),
+        "identities": created,
+        "errors": errors,
+    }
+
+
+@app.get("/stats", tags=["Stats"])
+def get_stats() -> dict[str, object]:
+    """Get system statistics."""
+    identities = identity_store.list()
+    events = memory_store.timeline()
+
+    return {
+        "identities_count": len(identities),
+        "events_count": len(events),
+        "recent_events": memory_store.last(5),
+        "uptime": "running",
+    }
 
 
 @app.get("/")
